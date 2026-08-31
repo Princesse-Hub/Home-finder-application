@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import {
   Building2,
@@ -14,7 +15,13 @@ import { Button } from "./common/Button";
 import api from "../api/axios";
 import axios from "axios";
 
-export const CreatePropertyForm: React.FC = () => {
+interface CreatePropertyFormProps {
+  onSuccess?: () => void;
+}
+
+export const CreatePropertyForm: React.FC<CreatePropertyFormProps> = ({
+  onSuccess,
+}) => {
   const [formData, setFormData] = useState({
     title: "",
     neighborhood: "",
@@ -40,15 +47,20 @@ export const CreatePropertyForm: React.FC = () => {
       HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
     >
   ) => {
-    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    setFormData((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     setLoading(true);
     setError("");
 
-    // Construct full location string matching mock data ("Neighborhood, City")
+    // Construct full location string
+    // Example: "Bastos, Yaoundé"
     const fullLocation = formData.neighborhood.trim()
       ? `${formData.neighborhood.trim()}, ${formData.city}`
       : formData.city;
@@ -71,9 +83,11 @@ export const CreatePropertyForm: React.FC = () => {
 
     try {
       const response = await api.post("/Property", payload);
+
       console.log("Created property:", response.data);
 
       setIsSubmitted(true);
+
       setFormData({
         title: "",
         neighborhood: "",
@@ -89,6 +103,11 @@ export const CreatePropertyForm: React.FC = () => {
         imageUrl: "",
         description: "",
       });
+
+      // Tell DashboardPage that the property was created successfully
+      if (onSuccess) {
+        onSuccess();
+      }
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
         const detail = error.response?.data?.detail;
@@ -97,7 +116,9 @@ export const CreatePropertyForm: React.FC = () => {
           setError(
             detail
               .map((item) => {
-                const field = item.loc?.[item.loc.length - 1];
+                const field =
+                  item.loc?.[item.loc.length - 1] || "field";
+
                 return `${field}: ${item.msg}`;
               })
               .join(", ")
@@ -121,6 +142,7 @@ export const CreatePropertyForm: React.FC = () => {
         <h2 className="text-xl font-bold text-gray-900 tracking-tight">
           List a new property
         </h2>
+
         <p className="mt-1 text-xs text-gray-500 leading-relaxed">
           Fill in the details below to showcase your property to buyers and
           renters on FindHome.
@@ -132,6 +154,7 @@ export const CreatePropertyForm: React.FC = () => {
           <p className="text-xs font-semibold text-emerald-800">
             Property Listed Successfully!
           </p>
+
           <p className="text-[11px] text-emerald-600 mt-0.5">
             Your listing is now live for buyers to explore.
           </p>
@@ -144,6 +167,7 @@ export const CreatePropertyForm: React.FC = () => {
             </div>
           )}
 
+          {/* Property Title */}
           <Input
             id="title"
             type="text"
@@ -156,7 +180,7 @@ export const CreatePropertyForm: React.FC = () => {
             required
           />
 
-          {/* Neighborhood & City (Constructs "Neighborhood, City" e.g. "Bastos, Yaoundé") */}
+          {/* Neighborhood & City */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
               id="neighborhood"
@@ -174,6 +198,7 @@ export const CreatePropertyForm: React.FC = () => {
               <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">
                 City
               </label>
+
               <select
                 name="city"
                 value={formData.city}
@@ -190,6 +215,7 @@ export const CreatePropertyForm: React.FC = () => {
             </div>
           </div>
 
+          {/* Price */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div className="sm:col-span-2">
               <Input
@@ -205,10 +231,12 @@ export const CreatePropertyForm: React.FC = () => {
               />
             </div>
 
+            {/* Currency */}
             <div className="rounded-none">
               <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">
                 Currency
               </label>
+
               <select
                 name="currency"
                 value={formData.currency}
@@ -221,10 +249,12 @@ export const CreatePropertyForm: React.FC = () => {
               </select>
             </div>
 
+            {/* Price Period */}
             <div className="rounded-none">
               <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">
                 Price Period
               </label>
+
               <select
                 name="pricePeriod"
                 value={formData.pricePeriod}
@@ -237,11 +267,14 @@ export const CreatePropertyForm: React.FC = () => {
             </div>
           </div>
 
+          {/* Purpose & Property Type */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Purpose */}
             <div className="rounded-none">
               <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">
                 Purpose
               </label>
+
               <select
                 name="purpose"
                 value={formData.purpose}
@@ -253,10 +286,12 @@ export const CreatePropertyForm: React.FC = () => {
               </select>
             </div>
 
+            {/* Property Type */}
             <div className="rounded-none">
               <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">
                 Property Type
               </label>
+
               <select
                 name="type"
                 value={formData.type}
@@ -272,6 +307,7 @@ export const CreatePropertyForm: React.FC = () => {
             </div>
           </div>
 
+          {/* Bedrooms, Bathrooms & Area */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Input
               id="bedrooms"
@@ -309,6 +345,7 @@ export const CreatePropertyForm: React.FC = () => {
             />
           </div>
 
+          {/* Image URL */}
           <Input
             id="imageUrl"
             type="url"
@@ -321,10 +358,12 @@ export const CreatePropertyForm: React.FC = () => {
             required
           />
 
+          {/* Description */}
           <div className="rounded-none">
             <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">
               Description
             </label>
+
             <textarea
               name="description"
               rows={4}
@@ -336,8 +375,9 @@ export const CreatePropertyForm: React.FC = () => {
             />
           </div>
 
+          {/* Submit */}
           <div className="pt-2">
-            <Button type="submit">
+            <Button type="submit" disabled={loading}>
               <PlusCircle className="w-4 h-4 mr-2 inline" />
               {loading ? "Publishing..." : "Publish Listing"}
             </Button>
@@ -347,3 +387,5 @@ export const CreatePropertyForm: React.FC = () => {
     </div>
   );
 };
+
+ 

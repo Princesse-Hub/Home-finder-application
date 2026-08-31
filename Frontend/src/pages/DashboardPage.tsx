@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -9,7 +10,6 @@ import {
   Search,
   Plus,
   ArrowUpRight,
-  CheckCircle2,
   Home,
   MessageSquare,
   Mail,
@@ -43,36 +43,64 @@ interface MessageItem {
   createdAt?: string;
 }
 
-type TabType = "overview" | "listings" | "add-property" | "messages" | "users";
+type TabType =
+  | "overview"
+  | "listings"
+  | "add-property"
+  | "messages"
+  | "users";
 
 export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
+
   const [activeTab, setActiveTab] = useState<TabType>("overview");
   const [properties, setProperties] = useState<Property[]>([]);
   const [messages, setMessages] = useState<MessageItem[]>([]);
   const [users, setUsers] = useState<UserItem[]>([]);
+
   const [loadingProperties, setLoadingProperties] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(true);
   const [loadingUsers, setLoadingUsers] = useState(true);
+
   const [error, setError] = useState<string | null>(null);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [messageSearchTerm, setMessageSearchTerm] = useState("");
   const [userSearchTerm, setUserSearchTerm] = useState("");
+
   const [deletingId, setDeletingId] = useState<string | number | null>(null);
-  const [deletingMessageId, setDeletingMessageId] = useState<number | null>(null);
+  const [deletingMessageId, setDeletingMessageId] = useState<number | null>(
+    null
+  );
   const [deletingUserId, setDeletingUserId] = useState<number | null>(null);
-  const [currentUser, setCurrentUser] = useState<{ id: number; name: string; email: string } | null>(null);
+
+  const [currentUser, setCurrentUser] = useState<{
+    id: number;
+    name: string;
+    email: string;
+  } | null>(null);
+
+  /* =========================
+     LOGOUT
+  ========================= */
 
   const handleLogout = () => {
     localStorage.removeItem("access_token");
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+
     window.dispatchEvent(new Event("authChange"));
+
     toast.success("Successfully logged out.");
+
     setTimeout(() => {
       navigate("/login", { replace: true });
     }, 100);
   };
+
+  /* =========================
+     FETCH CURRENT USER
+  ========================= */
 
   const fetchCurrentUser = useCallback(async () => {
     try {
@@ -83,29 +111,45 @@ export const DashboardPage: React.FC = () => {
     }
   }, []);
 
+  /* =========================
+     FETCH PROPERTIES
+  ========================= */
+
   const fetchProperties = useCallback(async () => {
     try {
       setLoadingProperties(true);
       setError(null);
+
       const response = await api.get("/Property/");
+
       setProperties(response.data);
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {
         setError(
-          err.response?.data?.detail || err.response?.data?.message || "Failed to load dashboard properties."
+          err.response?.data?.detail ||
+            err.response?.data?.message ||
+            "Failed to load dashboard properties."
         );
       } else {
-        setError("An unexpected error occurred while fetching properties.");
+        setError(
+          "An unexpected error occurred while fetching properties."
+        );
       }
     } finally {
       setLoadingProperties(false);
     }
   }, []);
 
+  /* =========================
+     FETCH MESSAGES
+  ========================= */
+
   const fetchMessages = useCallback(async () => {
     try {
       setLoadingMessages(true);
+
       const response = await api.get("/Message/");
+
       setMessages(response.data);
     } catch {
       setMessages([]);
@@ -114,10 +158,16 @@ export const DashboardPage: React.FC = () => {
     }
   }, []);
 
+  /* =========================
+     FETCH USERS
+  ========================= */
+
   const fetchUsers = useCallback(async () => {
     try {
       setLoadingUsers(true);
+
       const response = await api.get("/Auth/users");
+
       setUsers(response.data);
     } catch {
       setUsers([]);
@@ -126,125 +176,240 @@ export const DashboardPage: React.FC = () => {
     }
   }, []);
 
+  /* =========================
+     INITIAL LOAD
+  ========================= */
+
   useEffect(() => {
     fetchCurrentUser();
     fetchProperties();
     fetchMessages();
     fetchUsers();
-  }, [fetchCurrentUser, fetchProperties, fetchMessages, fetchUsers]);
+  }, [
+    fetchCurrentUser,
+    fetchProperties,
+    fetchMessages,
+    fetchUsers,
+  ]);
+
+  /* =========================
+     REFRESH
+  ========================= */
 
   const handleRefreshAll = () => {
     fetchProperties();
     fetchMessages();
     fetchUsers();
+
     toast.success("Dashboard data refreshed.");
   };
 
+  /* =========================
+     DELETE PROPERTY
+  ========================= */
+
   const handleDeleteProperty = async (id: string | number) => {
-    if (!window.confirm("Are you sure you want to delete this listing?")) return;
+    if (!window.confirm("Are you sure you want to delete this listing?")) {
+      return;
+    }
 
     const toastId = toast.loading("Deleting property...");
+
     try {
       setDeletingId(id);
+
       await api.delete(`/Property/${id}`);
-      setProperties((prev) => prev.filter((p) => p.id !== id));
-      toast.success("Property deleted successfully!", { id: toastId });
+
+      setProperties((prev) =>
+        prev.filter((property) => property.id !== id)
+      );
+
+      toast.success("Property deleted successfully!", {
+        id: toastId,
+      });
     } catch (err: unknown) {
       const msg = axios.isAxiosError(err)
-        ? err.response?.data?.detail || "Failed to delete property."
+        ? err.response?.data?.detail ||
+          "Failed to delete property."
         : "Failed to delete property.";
-      toast.error(msg, { id: toastId });
+
+      toast.error(msg, {
+        id: toastId,
+      });
     } finally {
       setDeletingId(null);
     }
   };
 
+  /* =========================
+     DELETE MESSAGE
+  ========================= */
+
   const handleDeleteMessage = async (id: number) => {
-    if (!window.confirm("Are you sure you want to delete this message?")) return;
+    if (!window.confirm("Are you sure you want to delete this message?")) {
+      return;
+    }
 
     const toastId = toast.loading("Deleting message...");
+
     try {
       setDeletingMessageId(id);
+
       await api.delete(`/Message/${id}`);
-      setMessages((prev) => prev.filter((m) => m.id !== id));
-      toast.success("Message deleted successfully!", { id: toastId });
+
+      setMessages((prev) =>
+        prev.filter((message) => message.id !== id)
+      );
+
+      toast.success("Message deleted successfully!", {
+        id: toastId,
+      });
     } catch (err: unknown) {
       const msg = axios.isAxiosError(err)
-        ? err.response?.data?.detail || "Failed to delete message."
+        ? err.response?.data?.detail ||
+          "Failed to delete message."
         : "Failed to delete message.";
-      toast.error(msg, { id: toastId });
+
+      toast.error(msg, {
+        id: toastId,
+      });
     } finally {
       setDeletingMessageId(null);
     }
   };
 
+  /* =========================
+     DELETE USER
+  ========================= */
+
   const handleDeleteUser = async (id: number) => {
-    if (!window.confirm(`Are you sure you want to delete this user?`)) return;
+    if (!window.confirm("Are you sure you want to delete this user?")) {
+      return;
+    }
 
     const toastId = toast.loading("Deleting user...");
+
     try {
       setDeletingUserId(id);
+
       await api.delete(`/Auth/delete/${id}`);
-      setUsers((prev) => prev.filter((u) => u.id !== id));
-      toast.success("User deleted successfully!", { id: toastId });
+
+      setUsers((prev) =>
+        prev.filter((user) => user.id !== id)
+      );
+
+      toast.success("User deleted successfully!", {
+        id: toastId,
+      });
     } catch (err: unknown) {
       const msg = axios.isAxiosError(err)
-        ? err.response?.data?.detail || "Failed to delete user."
+        ? err.response?.data?.detail ||
+          "Failed to delete user."
         : "Failed to delete user.";
-      toast.error(msg, { id: toastId });
+
+      toast.error(msg, {
+        id: toastId,
+      });
     } finally {
       setDeletingUserId(null);
     }
   };
 
+  /* =========================
+     PROPERTY CREATED
+  ========================= */
+
   const handlePropertyCreated = () => {
     fetchProperties();
     setActiveTab("listings");
+
     toast.success("Property created successfully!");
   };
 
+  /* =========================
+     STATISTICS
+  ========================= */
+
   const totalListings = properties.length;
-  const rentListings = properties.filter((p) => p.purpose === "rent").length;
-  const saleListings = properties.filter((p) => p.purpose === "sale").length;
+
+  const rentListings = properties.filter(
+    (property) => property.purpose === "rent"
+  ).length;
+
+  const saleListings = properties.filter(
+    (property) => property.purpose === "sale"
+  ).length;
+
   const totalMessages = messages.length;
   const totalUsers = users.length;
 
+  /* =========================
+     FILTER PROPERTIES
+  ========================= */
+
   const filteredProperties = properties.filter(
-    (p) =>
-      p.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.location?.toLowerCase().includes(searchTerm.toLowerCase())
+    (property) =>
+      property.title
+        ?.toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      property.location
+        ?.toLowerCase()
+        .includes(searchTerm.toLowerCase())
   );
+
+  /* =========================
+     FILTER MESSAGES
+  ========================= */
 
   const filteredMessages = messages.filter(
-    (m) =>
-      m.email?.toLowerCase().includes(messageSearchTerm.toLowerCase()) ||
-      m.firstname?.toLowerCase().includes(messageSearchTerm.toLowerCase()) ||
-      m.lastname?.toLowerCase().includes(messageSearchTerm.toLowerCase()) ||
-      m.message?.toLowerCase().includes(messageSearchTerm.toLowerCase())
+    (message) =>
+      message.email
+        ?.toLowerCase()
+        .includes(messageSearchTerm.toLowerCase()) ||
+      message.firstname
+        ?.toLowerCase()
+        .includes(messageSearchTerm.toLowerCase()) ||
+      message.lastname
+        ?.toLowerCase()
+        .includes(messageSearchTerm.toLowerCase()) ||
+      message.message
+        ?.toLowerCase()
+        .includes(messageSearchTerm.toLowerCase())
   );
 
+  /* =========================
+     FILTER USERS
+  ========================= */
+
   const filteredUsers = users.filter(
-    (u) =>
-      u.name?.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
-      u.email?.toLowerCase().includes(userSearchTerm.toLowerCase())
+    (user) =>
+      user.name
+        ?.toLowerCase()
+        .includes(userSearchTerm.toLowerCase()) ||
+      user.email
+        ?.toLowerCase()
+        .includes(userSearchTerm.toLowerCase())
   );
 
   return (
     <div className="bg-[#fafafa] min-h-screen py-6 md:py-12 rounded-none">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 rounded-none">
-        
-        {/* Header Section */}
+
+        {/* HEADER */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 md:mb-8 rounded-none">
           <div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
               Admin Dashboard
             </h1>
+
             <p className="mt-1 text-xs sm:text-sm text-gray-500">
               Manage property listings, user inquiries, and system users.
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+
+            {/* PROFILE */}
             <Link
               to="/profile"
               className="p-3 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 text-xs font-bold inline-flex items-center gap-1.5 transition cursor-pointer"
@@ -253,19 +418,33 @@ export const DashboardPage: React.FC = () => {
               My Profile
             </Link>
 
+            {/* REFRESH */}
             <button
               onClick={handleRefreshAll}
               className="p-3 bg-white border border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition cursor-pointer"
               title="Refresh Data"
             >
-              <RefreshCw className={`w-4 h-4 ${loadingProperties || loadingMessages || loadingUsers ? "animate-spin" : ""}`} />
+              <RefreshCw
+                className={`w-4 h-4 ${
+                  loadingProperties ||
+                  loadingMessages ||
+                  loadingUsers
+                    ? "animate-spin"
+                    : ""
+                }`}
+              />
             </button>
 
-            <Button onClick={() => setActiveTab("add-property")} className="p-3">
+            {/* ADD PROPERTY */}
+            <Button
+              onClick={() => setActiveTab("add-property")}
+              className="p-3"
+            >
               <Plus className="w-4 h-4 mr-2 inline" />
               Add Property
             </Button>
 
+            {/* LOGOUT */}
             <button
               onClick={handleLogout}
               className="p-3 bg-white border border-red-200 text-red-600 hover:bg-red-50 text-xs font-bold inline-flex items-center gap-1.5 transition cursor-pointer"
@@ -276,13 +455,14 @@ export const DashboardPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Global Error Banner */}
+        {/* ERROR */}
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 text-xs text-red-700 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
               <span>{error}</span>
             </div>
+
             <button
               onClick={() => setError(null)}
               className="text-xs font-bold underline ml-4 hover:text-red-900 cursor-pointer"
@@ -292,21 +472,34 @@ export const DashboardPage: React.FC = () => {
           </div>
         )}
 
-        {/* Admin User Info */}
+        {/* CURRENT USER */}
         {currentUser && (
           <div className="mb-6 p-4 bg-white border border-gray-200 flex items-center gap-3">
             <UserCircle className="w-6 h-6 text-[#0f382c]" />
+
             <div>
-              <span className="text-xs font-semibold text-gray-500">Logged in as:</span>
-              <span className="text-sm font-bold text-gray-900 ml-2">{currentUser.name}</span>
-              <span className="text-xs text-gray-500 ml-2">({currentUser.email})</span>
+              <span className="text-xs font-semibold text-gray-500">
+                Logged in as:
+              </span>
+
+              <span className="text-sm font-bold text-gray-900 ml-2">
+                {currentUser.name}
+              </span>
+
+              <span className="text-xs text-gray-500 ml-2">
+                ({currentUser.email})
+              </span>
             </div>
           </div>
         )}
 
-        {/* Tab Navigation */}
+        {/* TABS */}
         <div className="border-b border-gray-200 bg-white mb-6 md:mb-8 rounded-none overflow-x-auto">
-          <nav className="flex space-x-4 sm:space-x-8 px-4 sm:px-6 min-w-max" aria-label="Tabs">
+          <nav
+            className="flex space-x-4 sm:space-x-8 px-4 sm:px-6 min-w-max"
+            aria-label="Tabs"
+          >
+            {/* OVERVIEW */}
             <button
               onClick={() => setActiveTab("overview")}
               className={`py-4 px-1 inline-flex items-center gap-2 border-b-2 text-xs font-bold uppercase tracking-wider transition cursor-pointer ${
@@ -319,6 +512,7 @@ export const DashboardPage: React.FC = () => {
               Overview
             </button>
 
+            {/* LISTINGS */}
             <button
               onClick={() => setActiveTab("listings")}
               className={`py-4 px-1 inline-flex items-center gap-2 border-b-2 text-xs font-bold uppercase tracking-wider transition cursor-pointer ${
@@ -331,6 +525,7 @@ export const DashboardPage: React.FC = () => {
               Listings ({totalListings})
             </button>
 
+            {/* MESSAGES */}
             <button
               onClick={() => setActiveTab("messages")}
               className={`py-4 px-1 inline-flex items-center gap-2 border-b-2 text-xs font-bold uppercase tracking-wider transition cursor-pointer ${
@@ -343,6 +538,7 @@ export const DashboardPage: React.FC = () => {
               Messages ({totalMessages})
             </button>
 
+            {/* USERS */}
             <button
               onClick={() => setActiveTab("users")}
               className={`py-4 px-1 inline-flex items-center gap-2 border-b-2 text-xs font-bold uppercase tracking-wider transition cursor-pointer ${
@@ -355,6 +551,7 @@ export const DashboardPage: React.FC = () => {
               Users ({totalUsers})
             </button>
 
+            {/* CREATE PROPERTY */}
             <button
               onClick={() => setActiveTab("add-property")}
               className={`py-4 px-1 inline-flex items-center gap-2 border-b-2 text-xs font-bold uppercase tracking-wider transition cursor-pointer ${
@@ -369,71 +566,99 @@ export const DashboardPage: React.FC = () => {
           </nav>
         </div>
 
-        {/* Overview Tab */}
+        {/* =========================
+            OVERVIEW
+        ========================= */}
+
         {activeTab === "overview" && (
           <div className="space-y-6 md:space-y-8 rounded-none">
+
+            {/* STATISTICS */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5 rounded-none">
+
+              {/* TOTAL LISTINGS */}
               <div className="bg-white p-5 sm:p-6 border border-gray-200 rounded-none shadow-none flex items-center justify-between">
                 <div>
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
                     Total Listings
                   </p>
-                  <h3 className="text-2xl font-black text-gray-900">{totalListings}</h3>
+
+                  <h3 className="text-2xl font-black text-gray-900">
+                    {totalListings}
+                  </h3>
                 </div>
+
                 <div className="p-3 bg-gray-50 border border-gray-100 text-[#0f382c]">
                   <Building2 className="w-6 h-6" />
                 </div>
               </div>
 
+              {/* MESSAGES */}
               <div className="bg-white p-5 sm:p-6 border border-gray-200 rounded-none shadow-none flex items-center justify-between">
                 <div>
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
                     Inquiries Received
                   </p>
-                  <h3 className="text-2xl font-black text-gray-900">{totalMessages}</h3>
+
+                  <h3 className="text-2xl font-black text-gray-900">
+                    {totalMessages}
+                  </h3>
                 </div>
+
                 <div className="p-3 bg-gray-50 border border-gray-100 text-[#0f382c]">
                   <MessageSquare className="w-6 h-6" />
                 </div>
               </div>
 
+              {/* USERS */}
               <div className="bg-white p-5 sm:p-6 border border-gray-200 rounded-none shadow-none flex items-center justify-between">
                 <div>
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
                     Total Users
                   </p>
-                  <h3 className="text-2xl font-black text-gray-900">{totalUsers}</h3>
+
+                  <h3 className="text-2xl font-black text-gray-900">
+                    {totalUsers}
+                  </h3>
                 </div>
+
                 <div className="p-3 bg-gray-50 border border-gray-100 text-[#0f382c]">
                   <Users className="w-6 h-6" />
                 </div>
               </div>
 
+              {/* RENT / SALE */}
               <div className="bg-white p-5 sm:p-6 border border-gray-200 rounded-none shadow-none flex items-center justify-between">
                 <div>
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
                     Rent / Sale
                   </p>
+
                   <h3 className="text-2xl font-black text-gray-900">
                     {rentListings} / {saleListings}
                   </h3>
                 </div>
+
                 <div className="p-3 bg-gray-50 border border-gray-100 text-[#0f382c]">
                   <Home className="w-6 h-6" />
                 </div>
               </div>
             </div>
 
+            {/* RECENT SUBMISSIONS */}
             <div className="bg-white border border-gray-200 rounded-none p-4 sm:p-6 shadow-none">
+
               <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-100">
                 <div>
                   <h2 className="text-base sm:text-lg font-bold text-gray-900 tracking-tight">
                     Recent Submissions
                   </h2>
+
                   <p className="text-xs text-gray-500 mt-0.5">
                     Your most recently published properties.
                   </p>
                 </div>
+
                 <button
                   onClick={() => setActiveTab("listings")}
                   className="text-xs font-bold text-[#0f382c] hover:underline inline-flex items-center gap-1 cursor-pointer"
@@ -456,12 +681,18 @@ export const DashboardPage: React.FC = () => {
                         <th className="py-3 px-4">Location</th>
                         <th className="py-3 px-4">Type</th>
                         <th className="py-3 px-4">Price</th>
-                        <th className="py-3 px-4 text-right">Action</th>
+                        <th className="py-3 px-4 text-right">
+                          Action
+                        </th>
                       </tr>
                     </thead>
+
                     <tbody className="divide-y divide-gray-100 text-xs text-gray-800">
                       {properties.slice(0, 5).map((property) => (
-                        <tr key={property.id} className="hover:bg-gray-50/50 transition">
+                        <tr
+                          key={property.id}
+                          className="hover:bg-gray-50/50 transition"
+                        >
                           <td className="py-3 px-4 font-medium text-gray-900">
                             <div className="flex items-center gap-3">
                               <img
@@ -472,27 +703,39 @@ export const DashboardPage: React.FC = () => {
                                 alt={property.title}
                                 className="w-10 h-10 object-cover rounded-none border border-gray-200 shrink-0"
                               />
+
                               <span className="truncate max-w-[150px] sm:max-w-[200px]">
                                 {property.title}
                               </span>
                             </div>
                           </td>
+
                           <td className="py-3 px-4 text-gray-600">
                             {property.location}
                           </td>
+
                           <td className="py-3 px-4">
                             <span className="inline-block px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-700">
                               {property.type} ({property.purpose})
                             </span>
                           </td>
+
                           <td className="py-3 px-4 font-semibold text-gray-900">
-                            {property.price?.toLocaleString()} {property.currency}
-                            {property.pricePeriod ? `/${property.pricePeriod}` : ""}
+                            {property.price?.toLocaleString()}{" "}
+                            {property.currency}
+                            {property.pricePeriod
+                              ? `/${property.pricePeriod}`
+                              : ""}
                           </td>
+
                           <td className="py-3 px-4 text-right">
                             <button
-                              onClick={() => handleDeleteProperty(property.id)}
-                              disabled={deletingId === property.id}
+                              onClick={() =>
+                                handleDeleteProperty(property.id)
+                              }
+                              disabled={
+                                deletingId === property.id
+                              }
                               className="text-red-600 hover:text-red-800 p-1.5 transition disabled:opacity-40 cursor-pointer"
                               title="Delete Listing"
                             >
@@ -506,8 +749,15 @@ export const DashboardPage: React.FC = () => {
                 </div>
               ) : (
                 <div className="p-8 text-center bg-gray-50 border border-dashed border-gray-200">
-                  <p className="text-xs text-gray-500 mb-3">No properties listed yet.</p>
-                  <Button onClick={() => setActiveTab("add-property")}>
+                  <p className="text-xs text-gray-500 mb-3">
+                    No properties listed yet.
+                  </p>
+
+                  <Button
+                    onClick={() =>
+                      setActiveTab("add-property")
+                    }
+                  >
                     Create Your First Property
                   </Button>
                 </div>
@@ -516,23 +766,34 @@ export const DashboardPage: React.FC = () => {
           </div>
         )}
 
-        {/* Listings Tab */}
+        {/* =========================
+            LISTINGS
+        ========================= */}
+
         {activeTab === "listings" && (
           <div className="space-y-6 rounded-none">
+
             <div className="bg-white p-4 border border-gray-200 rounded-none shadow-none flex flex-col sm:flex-row items-center justify-between gap-4">
+
               <div className="w-full sm:w-80">
                 <Input
                   id="dashboard-search"
                   type="text"
                   placeholder="Search listings by title or location..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) =>
+                    setSearchTerm(e.target.value)
+                  }
                   icon={<Search className="w-4 h-4" />}
                 />
               </div>
 
               <span className="text-xs text-gray-500 self-start sm:self-auto">
-                Showing <strong>{filteredProperties.length}</strong> of {properties.length} properties
+                Showing{" "}
+                <strong>
+                  {filteredProperties.length}
+                </strong>{" "}
+                of {properties.length} properties
               </span>
             </div>
 
@@ -543,19 +804,31 @@ export const DashboardPage: React.FC = () => {
             ) : filteredProperties.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 rounded-none">
                 {filteredProperties.map((property) => (
-                  <div key={property.id} className="relative group flex flex-col">
+                  <div
+                    key={property.id}
+                    className="relative group flex flex-col"
+                  >
                     <PropertyCard property={property} />
+
                     <div className="mt-2 p-2 bg-white border border-gray-200 flex justify-between items-center rounded-none">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5">
                         Active
                       </span>
+
                       <button
-                        onClick={() => handleDeleteProperty(property.id)}
-                        disabled={deletingId === property.id}
+                        onClick={() =>
+                          handleDeleteProperty(property.id)
+                        }
+                        disabled={
+                          deletingId === property.id
+                        }
                         className="inline-flex items-center gap-1 text-xs text-red-600 hover:text-red-800 font-semibold transition disabled:opacity-40 cursor-pointer"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
-                        {deletingId === property.id ? "Deleting..." : "Delete Listing"}
+
+                        {deletingId === property.id
+                          ? "Deleting..."
+                          : "Delete Listing"}
                       </button>
                     </div>
                   </div>
@@ -563,14 +836,22 @@ export const DashboardPage: React.FC = () => {
               </div>
             ) : (
               <div className="bg-white p-12 border border-gray-200 text-center space-y-3 rounded-none">
-                <h3 className="text-base font-semibold text-gray-800">No properties found</h3>
+                <h3 className="text-base font-semibold text-gray-800">
+                  No properties found
+                </h3>
+
                 <p className="text-xs text-gray-500 max-w-sm mx-auto">
                   {searchTerm
                     ? "No properties match your search term. Try adjusting your query."
                     : "You haven't added any properties to the system yet."}
                 </p>
+
                 {!searchTerm && (
-                  <Button onClick={() => setActiveTab("add-property")}>
+                  <Button
+                    onClick={() =>
+                      setActiveTab("add-property")
+                    }
+                  >
                     Add Property Now
                   </Button>
                 )}
@@ -579,23 +860,34 @@ export const DashboardPage: React.FC = () => {
           </div>
         )}
 
-        {/* Messages Tab */}
+        {/* =========================
+            MESSAGES
+        ========================= */}
+
         {activeTab === "messages" && (
           <div className="space-y-6 rounded-none">
+
             <div className="bg-white p-4 border border-gray-200 rounded-none shadow-none flex flex-col sm:flex-row items-center justify-between gap-4">
+
               <div className="w-full sm:w-80">
                 <Input
                   id="message-search"
                   type="text"
                   placeholder="Search messages by sender or email..."
                   value={messageSearchTerm}
-                  onChange={(e) => setMessageSearchTerm(e.target.value)}
+                  onChange={(e) =>
+                    setMessageSearchTerm(e.target.value)
+                  }
                   icon={<Search className="w-4 h-4" />}
                 />
               </div>
 
               <span className="text-xs text-gray-500 self-start sm:self-auto">
-                Showing <strong>{filteredMessages.length}</strong> of {messages.length} messages
+                Showing{" "}
+                <strong>
+                  {filteredMessages.length}
+                </strong>{" "}
+                of {messages.length} messages
               </span>
             </div>
 
@@ -605,6 +897,8 @@ export const DashboardPage: React.FC = () => {
               </div>
             ) : filteredMessages.length > 0 ? (
               <div className="space-y-4 rounded-none">
+
+                {/* DESKTOP */}
                 <div className="hidden md:block bg-white border border-gray-200 overflow-hidden shadow-none">
                   <table className="w-full text-left border-collapse">
                     <thead>
@@ -612,36 +906,56 @@ export const DashboardPage: React.FC = () => {
                         <th className="py-3 px-4">Sender</th>
                         <th className="py-3 px-4">Email</th>
                         <th className="py-3 px-4">Message</th>
-                        <th className="py-3 px-4 text-right">Action</th>
+                        <th className="py-3 px-4 text-right">
+                          Action
+                        </th>
                       </tr>
                     </thead>
+
                     <tbody className="divide-y divide-gray-100 text-xs text-gray-800">
-                      {filteredMessages.map((msg) => (
-                        <tr key={msg.id} className="hover:bg-gray-50/50 transition">
+                      {filteredMessages.map((message) => (
+                        <tr
+                          key={message.id}
+                          className="hover:bg-gray-50/50 transition"
+                        >
                           <td className="py-4 px-4 font-semibold text-gray-900 whitespace-nowrap">
                             <div className="flex items-center gap-2">
                               <User className="w-4 h-4 text-gray-400" />
-                              {msg.firstname} {msg.lastname}
+                              {message.firstname}{" "}
+                              {message.lastname}
                             </div>
                           </td>
+
                           <td className="py-4 px-4 text-gray-600 whitespace-nowrap">
                             <span className="inline-flex items-center gap-1.5">
                               <Mail className="w-3.5 h-3.5 text-gray-400" />
-                              {msg.email}
+                              {message.email}
                             </span>
                           </td>
+
                           <td className="py-4 px-4 text-gray-700 max-w-md break-words">
-                            {msg.message}
+                            {message.message}
                           </td>
+
                           <td className="py-4 px-4 text-right whitespace-nowrap">
                             <button
-                              onClick={() => handleDeleteMessage(msg.id)}
-                              disabled={deletingMessageId === msg.id}
+                              onClick={() =>
+                                handleDeleteMessage(
+                                  message.id
+                                )
+                              }
+                              disabled={
+                                deletingMessageId ===
+                                message.id
+                              }
                               className="text-red-600 hover:text-red-800 p-1.5 transition disabled:opacity-40 cursor-pointer inline-flex items-center gap-1 font-semibold"
-                              title="Delete Message"
                             >
                               <Trash2 className="w-4 h-4" />
-                              {deletingMessageId === msg.id ? "Deleting..." : "Delete"}
+
+                              {deletingMessageId ===
+                              message.id
+                                ? "Deleting..."
+                                : "Delete"}
                             </button>
                           </td>
                         </tr>
@@ -650,25 +964,37 @@ export const DashboardPage: React.FC = () => {
                   </table>
                 </div>
 
+                {/* MOBILE */}
                 <div className="grid grid-cols-1 gap-4 md:hidden">
-                  {filteredMessages.map((msg) => (
+                  {filteredMessages.map((message) => (
                     <div
-                      key={msg.id}
+                      key={message.id}
                       className="bg-white border border-gray-200 p-4 rounded-none space-y-3 shadow-none"
                     >
                       <div className="flex items-start justify-between border-b border-gray-100 pb-2">
+
                         <div>
                           <h4 className="font-bold text-gray-900 text-sm">
-                            {msg.firstname} {msg.lastname}
+                            {message.firstname}{" "}
+                            {message.lastname}
                           </h4>
+
                           <span className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
                             <Mail className="w-3 h-3 text-gray-400" />
-                            {msg.email}
+                            {message.email}
                           </span>
                         </div>
+
                         <button
-                          onClick={() => handleDeleteMessage(msg.id)}
-                          disabled={deletingMessageId === msg.id}
+                          onClick={() =>
+                            handleDeleteMessage(
+                              message.id
+                            )
+                          }
+                          disabled={
+                            deletingMessageId ===
+                            message.id
+                          }
                           className="text-red-600 hover:text-red-800 p-1 transition disabled:opacity-40 cursor-pointer"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -676,7 +1002,7 @@ export const DashboardPage: React.FC = () => {
                       </div>
 
                       <div className="text-xs text-gray-700 leading-relaxed bg-gray-50/70 p-3 border border-gray-100">
-                        {msg.message}
+                        {message.message}
                       </div>
                     </div>
                   ))}
@@ -684,29 +1010,42 @@ export const DashboardPage: React.FC = () => {
               </div>
             ) : (
               <div className="bg-white p-12 border border-gray-200 text-center bg-gray-50">
-                <p className="text-xs text-gray-500">No messages found matching your search.</p>
+                <p className="text-xs text-gray-500">
+                  No messages found matching your search.
+                </p>
               </div>
             )}
           </div>
         )}
 
-        {/* Users Tab */}
+        {/* =========================
+            USERS
+        ========================= */}
+
         {activeTab === "users" && (
           <div className="space-y-6 rounded-none">
+
             <div className="bg-white p-4 border border-gray-200 rounded-none shadow-none flex flex-col sm:flex-row items-center justify-between gap-4">
+
               <div className="w-full sm:w-80">
                 <Input
                   id="user-search"
                   type="text"
                   placeholder="Search users by name or email..."
                   value={userSearchTerm}
-                  onChange={(e) => setUserSearchTerm(e.target.value)}
+                  onChange={(e) =>
+                    setUserSearchTerm(e.target.value)
+                  }
                   icon={<Search className="w-4 h-4" />}
                 />
               </div>
 
               <span className="text-xs text-gray-500 self-start sm:self-auto">
-                Showing <strong>{filteredUsers.length}</strong> of {users.length} users
+                Showing{" "}
+                <strong>
+                  {filteredUsers.length}
+                </strong>{" "}
+                of {users.length} users
               </span>
             </div>
 
@@ -723,36 +1062,51 @@ export const DashboardPage: React.FC = () => {
                         <th className="py-3 px-4">ID</th>
                         <th className="py-3 px-4">Name</th>
                         <th className="py-3 px-4">Email</th>
-                        <th className="py-3 px-4 text-right">Actions</th>
+                        <th className="py-3 px-4 text-right">
+                          Actions
+                        </th>
                       </tr>
                     </thead>
+
                     <tbody className="divide-y divide-gray-100 text-xs text-gray-800">
                       {filteredUsers.map((user) => (
-                        <tr key={user.id} className="hover:bg-gray-50/50 transition">
+                        <tr
+                          key={user.id}
+                          className="hover:bg-gray-50/50 transition"
+                        >
                           <td className="py-4 px-4 font-mono text-xs text-gray-500">
                             #{user.id}
                           </td>
+
                           <td className="py-4 px-4 font-semibold text-gray-900">
                             <div className="flex items-center gap-2">
                               <UserCircle className="w-4 h-4 text-gray-400" />
                               {user.name}
                             </div>
                           </td>
+
                           <td className="py-4 px-4 text-gray-600">
                             <span className="inline-flex items-center gap-1.5">
                               <Mail className="w-3.5 h-3.5 text-gray-400" />
                               {user.email}
                             </span>
                           </td>
+
                           <td className="py-4 px-4 text-right">
                             <button
-                              onClick={() => handleDeleteUser(user.id)}
-                              disabled={deletingUserId === user.id}
+                              onClick={() =>
+                                handleDeleteUser(user.id)
+                              }
+                              disabled={
+                                deletingUserId === user.id
+                              }
                               className="text-red-600 hover:text-red-800 p-1.5 transition disabled:opacity-40 cursor-pointer inline-flex items-center gap-1 font-semibold"
-                              title="Delete User"
                             >
                               <Trash2 className="w-4 h-4" />
-                              {deletingUserId === user.id ? "Deleting..." : "Delete User"}
+
+                              {deletingUserId === user.id
+                                ? "Deleting..."
+                                : "Delete User"}
                             </button>
                           </td>
                         </tr>
@@ -773,13 +1127,17 @@ export const DashboardPage: React.FC = () => {
           </div>
         )}
 
-        {/* Add Property Tab */}
+        {/* =========================
+            ADD PROPERTY
+        ========================= */}
+
         {activeTab === "add-property" && (
           <div className="bg-white border border-gray-200 p-3 sm:p-6 rounded-none max-w-3xl mx-auto shadow-none">
-            <CreatePropertyForm onSuccess={handlePropertyCreated} />
+            <CreatePropertyForm
+              onSuccess={handlePropertyCreated}
+            />
           </div>
         )}
-
       </div>
     </div>
   );
